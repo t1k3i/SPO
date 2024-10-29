@@ -1,4 +1,4 @@
-poly    START 0
+horner    START 0
 
 first   LDA x
         ADD #2  
