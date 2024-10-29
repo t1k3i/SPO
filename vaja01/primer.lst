@@ -1,0 +1,10 @@
+00000            primer  START   0    
+                  . kaj naredi naslednji programček?
+00000  01002A    first   LDA     #42    
+00003  1B2006            ADD     x    
+00006  0F2003            STA     x    
+                  . kaj dela naslednji ukaz
+00009  3F2FFD    halt    J       halt    
+                  . podatki
+0000C  000016    x       WORD    22    
+0000F                    END     first    
