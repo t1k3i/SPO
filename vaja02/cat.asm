@@ -6,10 +6,10 @@ cat     START 0
         
 sta     CLEAR X
 loop    RD #0
-        COMPR A, B
-        JEQ print
         STCH buf, X
         ADDR S, X
+        COMPR A, B
+        JEQ print
         J loop
 
 print   STX len
@@ -21,8 +21,6 @@ pri     LDCH buf, X
         ADDR S, X
         COMPR X, T
         JLT pri
-        LDA #10
-        WD #1
         J sta
         
 halt 	J halt
