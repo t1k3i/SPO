@@ -1,0 +1,7 @@
+java -cp */sictools.jar sic.Asm rec.asm
+java -cp */sictools.jar sic.Asm stack.asm
+java -cp */sictools.jar sic.Asm echo.asm
+java -cp */sictools.jar sic.Link -o main.obj -m main stack.obj echo.obj rec.obj
+java -jar */sictools.jar main.obj
+
+* -> path to sictools

@@ -1,62 +1,6 @@
-prog    START 0
-        
-        CLEAR A
+echo    START 0
 
-loo     RD #0xFA
-        COMP #10
-        JEQ loop
-        COMP #48
-        JEQ halt
-        JSUB fak
-        +JSUB num
-        +JSUB nl
-        J loo  
-
-halt 	J halt
-
-.rekurzivno izracuna n! (n je v A)
-fak 	+STL @sp
-		+JSUB spush
-		+STB @sp
-		+JSUB spush
-
-		COMP #0
-		JEQ put1
-		RMO A, B 	.shranimo A .. nekam
-		SUB #1		.zmanjsamo A
-		JSUB fak
-		MULR B, A
-        J fakOut
-
-put1    LDA #1
-fakOut 	+JSUB spop
-		+LDB @sp
-		+JSUB spop
-		+LDL @sp
-		RSUB
-
-sinit	.nastavi vrednost sp na zacetek stacka
-		STA stackA
-		LDA #stack
-		STA sp
-		LDA stackA
-		RSUB
-
-spush 	.poveca vrednost sp za eno besedo
-		STA stackA
-		LDA sp
-		ADD #3
-		STA sp
-		LDA stackA
-		RSUB
-
-spop 	.zmanjsa vrednost sp za eno besedo
-		STA stackA
-		LDA sp
-		SUB #3
-		STA sp
-		LDA stackA
-		RSUB
+        EXTDEF char,nl,string,num
 
 char 	WD #1
 	RSUB
@@ -149,8 +93,6 @@ endnum  JSUB nl
         RSUB
 .konec num rutine
 
-primer  WORD 000920790
-
 numL    WORD 0
 numA    WORD 0
 numA2   WORD 0
@@ -167,15 +109,8 @@ staS    WORD 0
 staT    WORD 0
 sta     WORD 0
 
-txt     BYTE C'hello'
-        BYTE 0
-
 one     WORD 1
 zero    WORD 0
 mask    WORD -1
 
-stack 	RESW 1000
-sp		WORD 0
-stackA	WORD 0
-
-	    END prog
+        END echo

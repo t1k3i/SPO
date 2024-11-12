@@ -1,1 +1,4 @@
 sictools.jar
+*.log
+*.lst
+*.obj
