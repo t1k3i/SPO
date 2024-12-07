@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 const (
 	MinInt24 = -8388608
 	MaxInt24 = 8388607
@@ -11,16 +13,15 @@ type Machine struct {
 	regA, regX, regL, regB, regS, regT int32
 	regF                               float64
 	pc, sw                             int32
-	mem                                Memory
-	devices                            [NUM_OF_DEVICES]Device
+	Memory
+	devices [NUM_OF_DEVICES]Device
 }
 
 /*
  *	MACHINE CONSTRUCTOR
  */
 func NewMachine() *Machine {
-	machine := &Machine{}
-	machine.mem = Memory{}
+	machine := &Machine{Memory: Memory{}}
 	machine.devices[0] = &InputDevice{}
 	machine.devices[1] = &OutputDevice{}
 	machine.devices[2] = &ErrorDevice{}
@@ -108,6 +109,11 @@ func (m *Machine) SetPC(v int32) {
 	m.pc = v
 }
 
+func (m *Machine) IncPC() {
+	m.pc++
+	CheckValue(m.pc)
+}
+
 func (m *Machine) SetSW(v int32) {
 	CheckValue(v)
 	m.sw = v
@@ -131,14 +137,15 @@ func (m *Machine) GetReg(reg int) int32 {
 	case 5:
 		return m.GetT()
 	case 6:
+		// TODO
 		panic("Float v intu")
 	case 8:
 		return m.GetPC()
 	case 9:
 		return m.GetSW()
 	default:
-		// TODO
-		panic("Not valid register index")
+		NotValidRegisterIndex()
+		panic("Unreachable code after panic")
 	}
 }
 
@@ -161,21 +168,14 @@ func (m *Machine) SetReg(reg int, v int32) {
 	case 5:
 		m.SetT(v)
 	case 6:
+		// TODO
 		panic("Float v intu")
 	case 8:
 		m.SetPC(v)
 	case 9:
 		m.SetSW(v)
 	default:
-		// TODO
-		panic("Not valid register index")
-	}
-}
-
-func CheckValue(v int32) {
-	if v < MinInt24 || v > MaxInt24 {
-		// TODO
-		panic("Registers are 24 bits")
+		NotValidRegisterIndex()
 	}
 }
 
@@ -192,8 +192,202 @@ func (m *Machine) SetDevice(num int, device Device) {
 	m.devices[num] = device
 }
 
+/*
+ *	MAIN LOOP
+ */
+func (m *Machine) Start() {
+	for {
+		opcode := m.fetch()
+
+		switch opcode {
+		case ADD:
+			NotImplemented()
+		case ADDF:
+			NotImplemented()
+		case ADDR:
+			NotImplemented()
+		case AND:
+			NotImplemented()
+		case CLEAR:
+			NotImplemented()
+		case COMP:
+			NotImplemented()
+		case COMPF:
+			NotImplemented()
+		case COMPR:
+			NotImplemented()
+		case DIV:
+			NotImplemented()
+		case DIVF:
+			NotImplemented()
+		case DIVR:
+			NotImplemented()
+		case FIX:
+			NotImplemented()
+		case FLOAT:
+			NotImplemented()
+		case HIO:
+			NotImplemented()
+		case J:
+			NotImplemented()
+		case JEQ:
+			NotImplemented()
+		case JGT:
+			NotImplemented()
+		case JLT:
+			NotImplemented()
+		case JSUB:
+			NotImplemented()
+		case LDA:
+			NotImplemented()
+		case LDB:
+			NotImplemented()
+		case LDCH:
+			NotImplemented()
+		case LDF:
+			NotImplemented()
+		case LDL:
+			NotImplemented()
+		case LDS:
+			NotImplemented()
+		case LDT:
+			NotImplemented()
+		case LDX:
+			NotImplemented()
+		case LPS:
+			NotImplemented()
+		case MUL:
+			NotImplemented()
+		case MULF:
+			NotImplemented()
+		case MULR:
+			NotImplemented()
+		case NORM:
+			NotImplemented()
+		case OR:
+			NotImplemented()
+		case RD:
+			NotImplemented()
+		case RMO:
+			NotImplemented()
+		case RSUB:
+			NotImplemented()
+		case SHIFTL:
+			NotImplemented()
+		case SHIFTR:
+			NotImplemented()
+		case SIO:
+			NotImplemented()
+		case SSK:
+			NotImplemented()
+		case STA:
+			NotImplemented()
+		case STB:
+			NotImplemented()
+		case STCH:
+			NotImplemented()
+		case STF:
+			NotImplemented()
+		case STI:
+			NotImplemented()
+		case STL:
+			NotImplemented()
+		case STS:
+			NotImplemented()
+		case STSW:
+			NotImplemented()
+		case STT:
+			NotImplemented()
+		case STX:
+			NotImplemented()
+		case SUB:
+			NotImplemented()
+		case SUBF:
+			NotImplemented()
+		case SUBR:
+			NotImplemented()
+		case SVC:
+			NotImplemented()
+		case TD:
+			NotImplemented()
+		case TIO:
+			NotImplemented()
+		case TIX:
+			NotImplemented()
+		case TIXR:
+			NotImplemented()
+		case WD:
+			NotImplemented()
+		default:
+			OpcodeNotValid(opcode)
+		}
+	}
+}
+
+func (m *Machine) execute() {
+	opcode := m.fetch()
+	if m.execF1(opcode) {
+		return
+	}
+	op := int(m.fetch())
+	if m.execF2(opcode, byte(op)) {
+		return
+	}
+	op = op << 8
+	op += int(m.fetch())
+	ni := opcode & 3
+	if m.execF3F4(opcode, op, ni) {
+		return
+	}
+	OpcodeNotValid(opcode)
+}
+
+func (m *Machine) execF1(opcode byte) bool {
+	return false
+}
+
+func (m *Machine) execF2(opcode byte, op byte) bool {
+	return false
+}
+
+func (m *Machine) execF3F4(opcode byte, op int, ni byte) bool {
+	return false
+}
+
+func (m *Machine) fetch() byte {
+	ret := m.GetByte(m.GetPC())
+	m.IncPC()
+	return ret
+}
+
+/*
+ *	ERRORS
+ */
+func CheckValue(v int32) {
+	if v < MinInt24 || v > MaxInt24 {
+		panic("Values in SIC can be up to 24 bits!")
+	}
+}
+
 func CheckDeviceNumber(num int) {
 	if num < 0 || num >= NUM_OF_DEVICES {
-		panic("Invalid device number")
+		panic("Invalid device number!")
 	}
+}
+
+func NotValidRegisterIndex() {
+	panic("Not valid register index!")
+}
+
+func NotImplemented() {
+	panic("Not implemented!")
+}
+
+func OpcodeNotValid(opcode byte) {
+	str := fmt.Sprintf("Operation code %d is not valid!", opcode)
+	panic(str)
+}
+
+func InvalidAddressing() {
+	panic("Invalid addressing!")
 }
