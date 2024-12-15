@@ -21,6 +21,7 @@ type Machine struct {
 	pc, sw                             int32
 	Memory
 	devices [NUM_OF_DEVICES]Device
+	halted bool
 }
 
 /*
@@ -202,9 +203,15 @@ func (m *Machine) SetDevice(num int, device Device) {
  *	MAIN LOOP
  */
 func (m *Machine) Start() {
-	for {
+	for !m.halted {
 		m.execute()
 	}
+}
+
+func (m *Machine) fetch() byte {
+	ret := m.GetByte(m.GetPC())
+	m.IncPC()
+	return ret
 }
 
 func (m *Machine) execute() {
@@ -217,6 +224,7 @@ func (m *Machine) execute() {
 		return
 	}
 	ni := opcode & 3
+	opcode = opcode & 0b11111100 // opcode without ni bits
 	xbpe := byte(op >> 4)
 	op = op << 8
 	op += int32(m.fetch())
@@ -228,24 +236,27 @@ func (m *Machine) execute() {
 			return
 		}
 	} else {
+		if (opcode == J && ni == 3 && op == 0x2FFD) {
+			m.halted = true;
+			return;
+		}
 		if m.execF3F4(opcode, op, ni, false) {
 			return
 		}
 	}
-	
 	OpcodeNotValid(opcode)
 }
 
 func (m *Machine) execF1(opcode byte) bool {
 	switch opcode {
 	case FIX:
-		NotImplemented()
+		NotImplementedFloat()
 	case FLOAT:
-		NotImplemented()
+		NotImplementedFloat()
 	case HIO:
 		NotImplemented()
 	case NORM:
-		NotImplemented()
+		NotImplementedFloat()
 	case SIO:
 		NotImplemented()
 	case TIO:
@@ -279,78 +290,6 @@ func (m *Machine) execF1(opcode byte) bool {
 		return true
 	}
 	return false
-}
-
-func (m *Machine) addr(op byte) {
-	r1 := op & 0b11110000
-	r2 := op & 0b00001111
-	m.SetReg(r2, m.GetReg(r1) + m.GetReg(r2))
-}
-
-func (m *Machine) clear(op byte) {
-	m.SetReg(op, 0)
-}
-
-func (m *Machine) compr(op byte) {
-	r1 := op & 0b11110000
-	r2 := op & 0b00001111
-	r1Value := m.GetReg(r1)
-	r2Value := m.GetReg(r2)
-	if r1Value < r2Value {
-		m.SetSW(LT)
-	} else if r1Value == r2Value {
-		m.SetSW(EQ)
-	} else {
-		m.SetSW(GT)
-	}
-}
-
-func (m *Machine) divr(op byte) {
-	r1 := op & 0b11110000
-	r2 := op & 0b00001111
-	m.SetReg(r2, m.GetReg(r1) / m.GetReg(r2))
-}
-
-func (m *Machine) mulr(op byte) {
-	r1 := op & 0b11110000
-	r2 := op & 0b00001111
-	m.SetReg(r2, m.GetReg(r1) * m.GetReg(r2))
-}
-
-func (m *Machine) rmo(op byte) {
-	r1 := op & 0b11110000
-	r2 := op & 0b00001111
-	m.SetReg(r2, m.GetReg(r1))
-}
-
-func (m *Machine) shiftl(op byte) {
-	r1 := op & 0b11110000
-	v := op & 0b00001111
-	m.SetReg(r1, m.GetReg(r1) << v)
-}
-
-func (m *Machine) shiftr(op byte) {
-	r1 := op & 0b11110000
-	v := op & 0b00001111
-	m.SetReg(r1, m.GetReg(r1) >> v)
-}
-
-func (m *Machine) subr(op byte) {
-	r1 := op & 0b11110000
-	r2 := op & 0b00001111
-	m.SetReg(r2, m.GetReg(r2) - m.GetReg(r1))
-}
-
-func (m *Machine) svc(op byte) {
-	NotImplemented()
-}
-
-func (m *Machine) tixr(op byte) {
-	m.SetX(m.GetX() + 1)
-	r1 := 0b00010000 // register x
-	r2 := op // register from operand
-	op2 := byte(r1) + r2
-	m.compr(op2)
 }
 
 /*
@@ -402,7 +341,8 @@ func (m *Machine) tixr(op byte) {
 		WD:    m.wd,
 	}
 
-	operand, old := m.getFullOperandAndCheckIfOld(op, ni, ex)
+	fetchByte := opcode == LDCH || opcode == STCH
+	operand, old := m.getFullOperandAndCheckIfOld(op, ni, ex, fetchByte)
 
 	if handler, ok := handlers[opcode]; ok {
 		handler(operand, ex, old)
@@ -411,197 +351,7 @@ func (m *Machine) tixr(op byte) {
 	return false
 }
 
-func (m *Machine) add(op int32, ex bool, oldSic bool) {
-	m.SetA(m.GetA() + op)
-}
-
-func (m *Machine) addf(op int32, ex bool, oldSic bool) {
-	NotImplemented()
-}
-
-func (m *Machine) and(op int32, ex bool, oldSic bool) {
-	m.SetA(m.GetA() & op)
-}
-
-func (m *Machine) comp(op int32, ex bool, oldSic bool) {
-	valueA := m.GetA()
-	if valueA < op {
-		m.SetSW(LT)
-	} else if valueA == op {
-		m.SetSW(EQ)
-	} else {
-		m.SetSW(GT)
-	}
-}
-
-func (m *Machine) compf(op int32, ex bool, oldSic bool) {
-	NotImplemented()
-}
-
-func (m *Machine) div(op int32, ex bool, oldSic bool) {
-	m.SetA(m.GetA() / op)
-}
-
-func (m *Machine) divf(op int32, ex bool, oldSic bool) {
-	NotImplemented()
-}
-
-func (m *Machine) j(op int32, ex bool, oldSic bool) {
-	m.SetPC(op)
-}
-
-func (m *Machine) jeq(op int32, ex bool, oldSic bool) {
-	if m.GetSW() == EQ {
-		m.SetPC(op)
-	}
-}
-
-func (m *Machine) jgt(op int32, ex bool, oldSic bool) {
-	if m.GetSW() == GT {
-		m.SetPC(op)
-	}
-}
-
-func (m *Machine) jlt(op int32, ex bool, oldSic bool) {
-	if m.GetSW() == LT {
-		m.SetPC(op)
-	}
-}
-
-func (m *Machine) jsub(op int32, ex bool, oldSic bool) {
-	m.SetL(m.GetPC())
-	m.SetPC(op)
-}
-
-func (m *Machine) lda(op int32, ex bool, oldSic bool) {
-	m.SetA(op)
-}
-
-func (m *Machine) ldb(op int32, ex bool, oldSic bool) {
-	m.SetB(op)
-}
-
-func (m *Machine) ldch(op int32, ex bool, oldSic bool) {
-	NotImplemented()
-}
-
-func (m *Machine) ldf(op int32, ex bool, oldSic bool) {
-	NotImplemented()
-}
-
-func (m *Machine) ldl(op int32, ex bool, oldSic bool) {
-	m.SetL(op)
-}
-
-func (m *Machine) lds(op int32, ex bool, oldSic bool) {
-	m.SetS(op)
-}
-
-func (m *Machine) ldt(op int32, ex bool, oldSic bool) {
-	m.SetT(op)
-}
-
-func (m *Machine) ldx(op int32, ex bool, oldSic bool) {
-	m.SetX(op)
-}
-
-func (m *Machine) lps(op int32, ex bool, oldSic bool) {
-	NotImplemented()
-}
-
-func (m *Machine) mul(op int32, ex bool, oldSic bool) {
-	m.SetA(m.GetA() * op)
-}
-
-func (m *Machine) mulf(op int32, ex bool, oldSic bool) {
-	NotImplemented()
-}
-
-func (m *Machine) or(op int32, ex bool, oldSic bool) {
-	m.SetA(m.GetA() | op)
-}
-
-func (m *Machine) rd(op int32, ex bool, oldSic bool) {
-	NotImplemented()
-}
-
-func (m *Machine) rsub(op int32, ex bool, oldSic bool) {
-	m.SetPC(m.GetL())
-}
-
-func (m *Machine) ssk(op int32, ex bool, oldSic bool) {
-	NotImplemented()
-}
-
-func (m *Machine) sta(op int32, ex bool, oldSic bool) {
-	m.SetWord(op, m.GetA())
-}
-
-func (m *Machine) stb(op int32, ex bool, oldSic bool) {
-	m.SetWord(op, m.GetB())
-}
-
-func (m *Machine) stch(op int32, ex bool, oldSic bool) {
-	NotImplemented()
-}
-
-func (m *Machine) stf(op int32, ex bool, oldSic bool) {
-	NotImplemented()
-}
-
-func (m *Machine) sti(op int32, ex bool, oldSic bool) {
-	NotImplemented()
-}
-
-func (m *Machine) stl(op int32, ex bool, oldSic bool) {
-	m.SetWord(op, m.GetL())
-}
-
-func (m *Machine) sts(op int32, ex bool, oldSic bool) {
-	m.SetWord(op, m.GetS())
-}
-
-func (m *Machine) stsw(op int32, ex bool, oldSic bool) {
-	m.SetWord(op, m.GetSW())
-}
-
-func (m *Machine) stt(op int32, ex bool, oldSic bool) {
-	m.SetWord(op, m.GetT())
-}
-
-func (m *Machine) stx(op int32, ex bool, oldSic bool) {
-	m.SetWord(op, m.GetX())
-}
-
-func (m *Machine) sub(op int32, ex bool, oldSic bool) {
-	m.SetA(m.GetA() - op)
-}
-
-func (m *Machine) subf(op int32, ex bool, oldSic bool) {
-	NotImplemented()
-}
-
-func (m *Machine) td(op int32, ex bool, oldSic bool) {
-	NotImplemented()
-}
-
-func (m *Machine) tix(op int32, ex bool, oldSic bool) {
-	m.SetX(m.GetX() + 1)
-	xValue := m.GetX()
-	if xValue < op {
-		m.SetSW(LT)
-	} else if xValue == op {
-		m.SetSW(EQ)
-	} else {
-		m.SetSW(GT)
-	}
-}
-
-func (m *Machine) wd(op int32, ex bool, oldSic bool) {
-	NotImplemented()
-}
-
-func (m *Machine) getFullOperandAndCheckIfOld(op int32, ni byte, ex bool) (int32, bool) {
+func (m *Machine) getFullOperandAndCheckIfOld(op int32, ni byte, ex bool, fetchByte bool) (int32, bool) {
 	if ni == 0 {
 		if !ex {
 			panic("Old SIC and extended!")
@@ -613,7 +363,7 @@ func (m *Machine) getFullOperandAndCheckIfOld(op int32, ni byte, ex bool) (int32
 	} else {
 		offset, xbpe := getOffsetAndXBPE(op, ex)
 		UN := m.getEffectiveAddress(xbpe, offset)
-		return m.getFullOperand(UN, ni), false
+		return m.getFullOperand(UN, ni, fetchByte), false
 	}
 }
 
@@ -630,31 +380,34 @@ func (m *Machine) getEffectiveAddress(xbpe byte, offset int32) int32 {
 	if (xbpe & 8) == 1 {
 		x = m.GetX()
 	}
-	if (xbpe & 2) == 1 {
+	if (((xbpe & 2) == 1) && ((xbpe & 4) == 1) ) {
+		panic("This type of addressing is not supported!")
+	} else if (xbpe & 2) == 1 {
 		return m.GetPC() + offset + x
 	} else if (xbpe & 4) == 1 {
 		return m.GetB() + offset + x
-	} else if ((xbpe & 2) == 0) && ((xbpe & 4) == 0) {
-		return offset + x
 	} else {
-		panic("This type of addressing is not supported!")
+		return offset + x
 	}
 }
 
-func (m *Machine) getFullOperand(UN int32, ni byte) int32 {
+func (m *Machine) getFullOperand(UN int32, ni byte, fetchByte bool /* for commands like ldch */) int32 {
 	if ni == 1 {
+		if fetchByte {
+			return UN & 0x0000FF
+		}
 		return UN
 	} else if ni == 2 {
+		if fetchByte {
+			return int32(m.GetByte(m.GetWord(UN)))
+		}
 		return m.GetWord(m.GetWord(UN))
 	} else {
+		if fetchByte {
+			return int32(m.GetByte(UN))
+		}
 		return m.GetWord(UN)
 	}
-}
-
-func (m *Machine) fetch() byte {
-	ret := m.GetByte(m.GetPC())
-	m.IncPC()
-	return ret
 }
 
 /*
@@ -678,6 +431,10 @@ func NotValidRegisterIndex() {
 
 func NotImplemented() {
 	panic("Not implemented!")
+}
+
+func NotImplementedFloat() {
+	panic("Does not support floats yet!")
 }
 
 func OpcodeNotValid(opcode byte) {
