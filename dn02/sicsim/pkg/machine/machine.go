@@ -1,6 +1,9 @@
-package main
+package machine
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 const (
 	MinInt24 = -8388608
@@ -8,9 +11,9 @@ const (
 )
 
 const (
-	LT = -1
-	EQ = 0
-	GT = 1
+	LT = 0x40
+	EQ = 0x00
+	GT = 0x80
 )
 
 const NUM_OF_DEVICES = 256
@@ -22,6 +25,8 @@ type Machine struct {
 	Memory
 	devices [NUM_OF_DEVICES]Device
 	halted bool
+	paused bool
+	speed time.Duration
 }
 
 /*
@@ -32,180 +37,58 @@ func NewMachine() *Machine {
 	machine.devices[0] = &InputDevice{}
 	machine.devices[1] = &OutputDevice{}
 	machine.devices[2] = &ErrorDevice{}
+	machine.speed = time.Millisecond * 1000
 	return machine
-}
-
-/*
- *	GET REGISTER VALUES
- */
-func (m *Machine) GetA() int32 {
-	return m.regA
-}
-
-func (m *Machine) GetX() int32 {
-	return m.regX
-}
-
-func (m *Machine) GetL() int32 {
-	return m.regL
-}
-
-func (m *Machine) GetB() int32 {
-	return m.regB
-}
-
-func (m *Machine) GetS() int32 {
-	return m.regS
-}
-
-func (m *Machine) GetT() int32 {
-	return m.regT
-}
-
-func (m *Machine) GetF() float64 {
-	return m.regF
-}
-
-func (m *Machine) GetPC() int32 {
-	return m.pc
-}
-
-func (m *Machine) GetSW() int32 {
-	return m.sw
-}
-
-/*
- *	SET REGISTER VALUES
- */
-func (m *Machine) SetA(v int32) {
-	CheckValue(v)
-	m.regA = v
-}
-
-func (m *Machine) SetX(v int32) {
-	CheckValue(v)
-	m.regX = v
-}
-
-func (m *Machine) SetL(v int32) {
-	CheckValue(v)
-	m.regL = v
-}
-
-func (m *Machine) SetB(v int32) {
-	CheckValue(v)
-	m.regB = v
-}
-
-func (m *Machine) SetS(v int32) {
-	CheckValue(v)
-	m.regS = v
-}
-
-func (m *Machine) SetT(v int32) {
-	CheckValue(v)
-	m.regT = v
-}
-
-func (m *Machine) SetF(v float64) {
-	m.regF = v
-}
-
-func (m *Machine) SetPC(v int32) {
-	CheckValue(v)
-	m.pc = v
-}
-
-func (m *Machine) IncPC() {
-	m.pc++
-	CheckValue(m.pc)
-}
-
-func (m *Machine) SetSW(v int32) {
-	CheckValue(v)
-	m.sw = v
-}
-
-/*
- *	GET REGISTER VALUES BY INDEX
- */
-func (m *Machine) GetReg(reg byte) int32 {
-	switch reg {
-	case 0:
-		return m.GetA()
-	case 1:
-		return m.GetX()
-	case 2:
-		return m.GetL()
-	case 3:
-		return m.GetB()
-	case 4:
-		return m.GetS()
-	case 5:
-		return m.GetT()
-	case 6:
-		// TODO
-		panic("Float v intu")
-	case 8:
-		return m.GetPC()
-	case 9:
-		return m.GetSW()
-	default:
-		NotValidRegisterIndex()
-		panic("Unreachable code after panic")
-	}
-}
-
-/*
- *	SET REGISTER VALUES BY INDEX
- */
-func (m *Machine) SetReg(reg byte, v int32) {
-	CheckValue(v)
-	switch reg {
-	case 0:
-		m.SetA(v)
-	case 1:
-		m.SetX(v)
-	case 2:
-		m.SetL(v)
-	case 3:
-		m.SetB(v)
-	case 4:
-		m.SetS(v)
-	case 5:
-		m.SetT(v)
-	case 6:
-		// TODO
-		panic("Float v intu")
-	case 8:
-		m.SetPC(v)
-	case 9:
-		m.SetSW(v)
-	default:
-		NotValidRegisterIndex()
-	}
 }
 
 /*
  *	DEVICE FUNCTIONS
  */
 func (m *Machine) GetDevice(num int) Device {
-	CheckDeviceNumber(num)
+	checkDeviceNumber(num)
 	return m.devices[num]
 }
 
 func (m *Machine) SetDevice(num int, device Device) {
-	CheckDeviceNumber(num)
+	checkDeviceNumber(num)
 	m.devices[num] = device
 }
 
 /*
  *	MAIN LOOP
  */
+func (m *Machine) IsRunning() bool {
+	return !m.halted || !m.paused
+}
+
+func (m *Machine) IsHalted() bool {
+	return !m.halted
+} 
+
 func (m *Machine) Start() {
-	for !m.halted {
-		m.execute()
+	m.paused = false;
+	ticker := time.NewTicker(m.speed)
+	defer ticker.Stop()
+	for !m.halted && !m.paused {
+		<- ticker.C
+		m.PrintRegisters()
+		m.PrintMEM(20)
+		m.Step()
 	}
+	if m.halted {
+		m.SetPC(m.GetPC() - 3)
+	}
+}
+
+func (m *Machine) Step() {
+	if m.halted {
+		return
+	}
+	m.execute()
+}
+
+func (m *Machine) Stop() {
+	m.paused = true;
 }
 
 func (m *Machine) fetch() byte {
@@ -227,7 +110,7 @@ func (m *Machine) execute() {
 	opcode = opcode & 0b11111100 // opcode without ni bits
 	xbpe := byte(op >> 4)
 	op = op << 8
-	op += int32(m.fetch())
+	op |= int32(m.fetch())
 	// Extended format
 	if (xbpe & 1) == 1 {
 		op = op << 8
@@ -244,23 +127,23 @@ func (m *Machine) execute() {
 			return
 		}
 	}
-	OpcodeNotValid(opcode)
+	opcodeNotValid(opcode)
 }
 
 func (m *Machine) execF1(opcode byte) bool {
 	switch opcode {
 	case FIX:
-		NotImplementedFloat()
+		notImplementedFloat()
 	case FLOAT:
-		NotImplementedFloat()
+		notImplementedFloat()
 	case HIO:
-		NotImplemented()
+		notImplemented()
 	case NORM:
-		NotImplementedFloat()
+		notImplementedFloat()
 	case SIO:
-		NotImplemented()
+		notImplemented()
 	case TIO:
-		NotImplemented()
+		notImplemented()
 	default:
 		return false
 	}
@@ -341,7 +224,7 @@ func (m *Machine) execF1(opcode byte) bool {
 		WD:    m.wd,
 	}
 
-	fetchByte := opcode == LDCH || opcode == STCH
+	fetchByte := opcode == LDCH || opcode == STCH || opcode == RD || opcode == WD || opcode == TD
 	operand, old := m.getFullOperandAndCheckIfOld(op, ni, ex, fetchByte)
 
 	if handler, ok := handlers[opcode]; ok {
@@ -354,7 +237,7 @@ func (m *Machine) execF1(opcode byte) bool {
 func (m *Machine) getFullOperandAndCheckIfOld(op int32, ni byte, ex bool, fetchByte bool) (int32, bool) {
 	if ni == 0 {
 		if !ex {
-			panic("Old SIC and extended!")
+			invalidAddressing()
 		}
 		if (op & 0x8000) == 1 {
 			return m.GetWord((op & 0x7FFF) + m.GetX()), true
@@ -363,7 +246,8 @@ func (m *Machine) getFullOperandAndCheckIfOld(op int32, ni byte, ex bool, fetchB
 	} else {
 		offset, xbpe := getOffsetAndXBPE(op, ex)
 		UN := m.getEffectiveAddress(xbpe, offset)
-		return m.getFullOperand(UN, ni, fetchByte), false
+		fullOperand := m.getFullOperand(UN, ni, fetchByte)
+		return fullOperand, false
 	}
 }
 
@@ -381,10 +265,11 @@ func (m *Machine) getEffectiveAddress(xbpe byte, offset int32) int32 {
 		x = m.GetX()
 	}
 	if (((xbpe & 2) == 1) && ((xbpe & 4) == 1) ) {
-		panic("This type of addressing is not supported!")
-	} else if (xbpe & 2) == 1 {
+		invalidAddressing()
+		panic("Not reachable!")
+	} else if (xbpe & 2) == 2 {
 		return m.GetPC() + offset + x
-	} else if (xbpe & 4) == 1 {
+	} else if (xbpe & 4) == 4 {
 		return m.GetB() + offset + x
 	} else {
 		return offset + x
@@ -411,37 +296,36 @@ func (m *Machine) getFullOperand(UN int32, ni byte, fetchByte bool /* for comman
 }
 
 /*
- *	ERRORS
+ *	PRINT STATE
  */
-func CheckValue(v int32) {
-	if v < MinInt24 || v > MaxInt24 {
-		panic("Values in SIC can be up to 24 bits!")
-	}
+func (m *Machine) PrintRegisters() {
+    fmt.Println("================== Registers ==================")
+    fmt.Printf("A:  %08X  X: %08X  L: %08X\n", m.regA, m.regX, m.regL)
+    fmt.Printf("B:  %08X  S: %08X  T: %08X\n", m.regB, m.regS, m.regT)
+    fmt.Printf("F:  %X\n", m.regF)
+    fmt.Printf("PC: %08X  SW: %08X\n", m.pc, m.sw)
+    fmt.Println("===============================================")
 }
 
-func CheckDeviceNumber(num int) {
-	if num < 0 || num >= NUM_OF_DEVICES {
-		panic("Invalid device number!")
-	}
+func (m *Machine) PrintMEM(n int) {
+    fmt.Println("================== Memory Dump ==================")
+    for i := 0; i < n; i += 16 {
+        fmt.Printf("0x%06X: ", i)
+        for j := 0; j < 16 && i+j < n; j++ {
+            fmt.Printf("%02X ", m.GetByte(int32(i+j)))
+        }
+        fmt.Println()
+    }
+    fmt.Println("================================================")
 }
 
-func NotValidRegisterIndex() {
-	panic("Not valid register index!")
+/*
+ *	SPEED OF SIM
+ */
+func (m *Machine) GetSpeed() time.Duration {
+	return m.speed
 }
 
-func NotImplemented() {
-	panic("Not implemented!")
-}
-
-func NotImplementedFloat() {
-	panic("Does not support floats yet!")
-}
-
-func OpcodeNotValid(opcode byte) {
-	str := fmt.Sprintf("Operation code %d is not valid!", opcode)
-	panic(str)
-}
-
-func InvalidAddressing() {
-	panic("Invalid addressing!")
+func (m *Machine) SetSpeed(speed time.Duration) {
+	m.speed = speed
 }

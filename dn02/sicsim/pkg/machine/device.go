@@ -1,4 +1,4 @@
-package main
+package machine
 
 import (
 	"fmt"
@@ -86,7 +86,7 @@ func (d *FileDevice) Test() bool {
 }
 
 func (d *FileDevice) Read() byte {
-	CheckIfFileExists(d.file)
+	checkIfFileExists(d.file)
 	buffer := make([]byte, 1)
 	n, err := d.file.Read(buffer)
 	if err != nil || n == 0 {
@@ -96,15 +96,15 @@ func (d *FileDevice) Read() byte {
 }
 
 func (d *FileDevice) Write(value byte) {
-	CheckIfFileExists(d.file)
+	checkIfFileExists(d.file)
 	_, err := d.file.Write([]byte{value})
 	if err != nil {
 		panic("Failed to write to file: " + err.Error())
 	}
 }
 
-func CheckIfFileExists(file *os.File) {
+func checkIfFileExists(file *os.File) {
 	if file == nil {
-		panic("File is not opened!")
+		fileDoesNotExist()
 	}
 }

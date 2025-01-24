@@ -1,4 +1,4 @@
-package main
+package machine
 
 const (
 	ADD    = 0x18

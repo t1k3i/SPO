@@ -1,4 +1,4 @@
-package main
+package machine
 
 const NUM_OF_ADDRESES = 1048576
 const MAX_ADDRESS = 0xFFFFFF
@@ -9,36 +9,27 @@ type Memory struct {
 }
 
 func (m *Memory) GetByte(addr int32) byte {
-	CheckAddress(addr)
+	checkAddress(addr)
 	return m.memory[addr]
 }
 
 func (m *Memory) SetByte(addr int32, v byte) {
-	CheckAddress(addr)
+	checkAddress(addr)
 	m.memory[addr] = v
 }
 
 func (m *Memory) GetWord(addr int32) int32 {
-	CheckAddress(addr)
+	checkAddress(addr)
 	word := int32(m.memory[addr])<<16 | int32(m.memory[addr+1])<<8 | int32(m.memory[addr+2])
 	return word
 }
 
 func (m *Memory) SetWord(addr int32, v int32) {
-	CheckAddress(addr)
-	CheckValue(v)
+	checkAddress(addr)
+	checkValue(v)
 	m.memory[addr+2] = byte(v & 0xFF)
 	v >>= 8
 	m.memory[addr+2] = byte(v & 0xFF)
 	v >>= 8
 	m.memory[addr+2] = byte(v & 0xFF)
-}
-
-/*
- *	ERRORS
- */
-func CheckAddress(addr int32) {
-	if addr < MIN_ADDRESS || addr > MAX_ADDRESS {
-		panic("Addres not valid!")
-	}
 }

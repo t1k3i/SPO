@@ -1,4 +1,4 @@
-package main
+package machine
 
 /*
  *	F2 COMMANDS
@@ -19,11 +19,11 @@ func (m *Machine) compr(op byte) {
 	r1Value := m.GetReg(r1)
 	r2Value := m.GetReg(r2)
 	if r1Value < r2Value {
-		m.SetSW(LT)
+		m.SetSW(m.GetSW() | LT)
 	} else if r1Value == r2Value {
-		m.SetSW(EQ)
+		m.SetSW(m.GetSW() | EQ)
 	} else {
-		m.SetSW(GT)
+		m.SetSW(m.GetSW() | GT)
 	}
 }
 
@@ -64,7 +64,7 @@ func (m *Machine) subr(op byte) {
 }
 
 func (m *Machine) svc(op byte) {
-	NotImplemented()
+	notImplemented()
 }
 
 func (m *Machine) tixr(op byte) {
@@ -83,7 +83,7 @@ func (m *Machine) add(op int32, ex bool, oldSic bool) {
 }
 
 func (m *Machine) addf(op int32, ex bool, oldSic bool) {
-	NotImplementedFloat()
+	notImplementedFloat()
 }
 
 func (m *Machine) and(op int32, ex bool, oldSic bool) {
@@ -93,16 +93,16 @@ func (m *Machine) and(op int32, ex bool, oldSic bool) {
 func (m *Machine) comp(op int32, ex bool, oldSic bool) {
 	valueA := m.GetA()
 	if valueA < op {
-		m.SetSW(LT)
+		m.SetSW(m.GetSW() | LT)
 	} else if valueA == op {
-		m.SetSW(EQ)
+		m.SetSW(m.GetSW() | EQ)
 	} else {
-		m.SetSW(GT)
+		m.SetSW(m.GetSW() | GT)
 	}
 }
 
 func (m *Machine) compf(op int32, ex bool, oldSic bool) {
-	NotImplementedFloat()
+	notImplementedFloat()
 }
 
 func (m *Machine) div(op int32, ex bool, oldSic bool) {
@@ -110,7 +110,7 @@ func (m *Machine) div(op int32, ex bool, oldSic bool) {
 }
 
 func (m *Machine) divf(op int32, ex bool, oldSic bool) {
-	NotImplementedFloat()
+	notImplementedFloat()
 }
 
 func (m *Machine) j(op int32, ex bool, oldSic bool) {
@@ -118,19 +118,19 @@ func (m *Machine) j(op int32, ex bool, oldSic bool) {
 }
 
 func (m *Machine) jeq(op int32, ex bool, oldSic bool) {
-	if m.GetSW() == EQ {
+	if (m.GetSW() & 0x0000C0) == EQ {
 		m.SetPC(op)
 	}
 }
 
 func (m *Machine) jgt(op int32, ex bool, oldSic bool) {
-	if m.GetSW() == GT {
+	if (m.GetSW() & 0x0000C0) == GT {
 		m.SetPC(op)
 	}
 }
 
 func (m *Machine) jlt(op int32, ex bool, oldSic bool) {
-	if m.GetSW() == LT {
+	if (m.GetSW() & 0x0000C0) == LT {
 		m.SetPC(op)
 	}
 }
@@ -153,7 +153,7 @@ func (m *Machine) ldch(op int32, ex bool, oldSic bool) {
 }
 
 func (m *Machine) ldf(op int32, ex bool, oldSic bool) {
-	NotImplementedFloat()
+	notImplementedFloat()
 }
 
 func (m *Machine) ldl(op int32, ex bool, oldSic bool) {
@@ -173,7 +173,7 @@ func (m *Machine) ldx(op int32, ex bool, oldSic bool) {
 }
 
 func (m *Machine) lps(op int32, ex bool, oldSic bool) {
-	NotImplemented()
+	m.SetSW(op)
 }
 
 func (m *Machine) mul(op int32, ex bool, oldSic bool) {
@@ -181,7 +181,7 @@ func (m *Machine) mul(op int32, ex bool, oldSic bool) {
 }
 
 func (m *Machine) mulf(op int32, ex bool, oldSic bool) {
-	NotImplementedFloat()
+	notImplementedFloat()
 }
 
 func (m *Machine) or(op int32, ex bool, oldSic bool) {
@@ -189,7 +189,8 @@ func (m *Machine) or(op int32, ex bool, oldSic bool) {
 }
 
 func (m *Machine) rd(op int32, ex bool, oldSic bool) {
-	NotImplemented()
+	devNumber := byte(op)
+	m.SetA((m.GetA() & 0xFFFF00) | (int32(m.devices[devNumber].Read()) & 0xFF))
 }
 
 func (m *Machine) rsub(op int32, ex bool, oldSic bool) {
@@ -197,7 +198,7 @@ func (m *Machine) rsub(op int32, ex bool, oldSic bool) {
 }
 
 func (m *Machine) ssk(op int32, ex bool, oldSic bool) {
-	NotImplemented()
+	notImplemented()
 }
 
 func (m *Machine) sta(op int32, ex bool, oldSic bool) {
@@ -213,11 +214,11 @@ func (m *Machine) stch(op int32, ex bool, oldSic bool) {
 }
 
 func (m *Machine) stf(op int32, ex bool, oldSic bool) {
-	NotImplementedFloat()
+	notImplementedFloat()
 }
 
 func (m *Machine) sti(op int32, ex bool, oldSic bool) {
-	NotImplemented()
+	notImplemented()
 }
 
 func (m *Machine) stl(op int32, ex bool, oldSic bool) {
@@ -245,11 +246,15 @@ func (m *Machine) sub(op int32, ex bool, oldSic bool) {
 }
 
 func (m *Machine) subf(op int32, ex bool, oldSic bool) {
-	NotImplementedFloat()
+	notImplementedFloat()
 }
 
 func (m *Machine) td(op int32, ex bool, oldSic bool) {
-	NotImplemented()
+	devNumber := byte(op)
+	if m.devices[devNumber].Test() {
+		m.SetSW((m.GetSW() & 0xFFFF3F) | LT)
+	}
+	m.SetSW((m.GetSW() & 0xFFFF3F) | EQ)
 }
 
 func (m *Machine) tix(op int32, ex bool, oldSic bool) {
@@ -265,5 +270,7 @@ func (m *Machine) tix(op int32, ex bool, oldSic bool) {
 }
 
 func (m *Machine) wd(op int32, ex bool, oldSic bool) {
-	NotImplemented()
+	devNumber := byte(op)
+	byteToWrite := byte(m.GetA() & 0xFF)
+	m.devices[devNumber].Write(byteToWrite)
 }
