@@ -33,3 +33,8 @@ func (m *Memory) SetWord(addr int32, v int32) {
 	v >>= 8
 	m.memory[addr+2] = byte(v & 0xFF)
 }
+
+func (m *Memory) clear() {
+	zeroes := [NUM_OF_ADDRESES]byte{}
+	copy(m.memory[:], zeroes[:])
+}

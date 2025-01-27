@@ -18,15 +18,28 @@ const (
 
 const NUM_OF_DEVICES = 256
 
+type memChange struct {
+	address int32
+	value 	byte
+}
+
+type changeLog struct {
+	regA, regX, regL, regB, regS, regT int32
+	regF                               float64
+	pc, sw							   int32
+	changedMem 						   []memChange
+}
+
 type Machine struct {
 	regA, regX, regL, regB, regS, regT int32
 	regF                               float64
 	pc, sw                             int32
 	Memory
-	devices [NUM_OF_DEVICES]Device
-	halted bool
-	paused bool
-	speed time.Duration
+	devices 						   [NUM_OF_DEVICES]Device
+	halted 							   bool
+	paused 							   bool
+	speed 						       time.Duration
+	undoStack 						   []changeLog
 }
 
 /*
@@ -38,6 +51,7 @@ func NewMachine() *Machine {
 	machine.devices[1] = &OutputDevice{}
 	machine.devices[2] = &ErrorDevice{}
 	machine.speed = time.Millisecond * 1000
+	machine.paused = true
 	return machine
 }
 
@@ -89,6 +103,49 @@ func (m *Machine) Step() {
 
 func (m *Machine) Stop() {
 	m.paused = true;
+}
+
+func (m *Machine) Undo() {
+	if len(m.undoStack) == 0 {
+		return
+	}
+
+	ix := len(m.undoStack)-1
+	lastLog := m.undoStack[ix]
+	m.undoStack = m.undoStack[:ix]
+
+	m.regA = lastLog.regA
+	m.regX = lastLog.regX
+	m.regL = lastLog.regL
+	m.regB = lastLog.regB
+	m.regS = lastLog.regS
+	m.regT = lastLog.regT
+	m.regF = lastLog.regF
+	m.pc = lastLog.pc
+	m.sw = lastLog.sw
+
+	for _, change := range lastLog.changedMem {
+		m.SetByte(change.address, change.value)
+	}
+}
+
+func (m *Machine) Reset() {
+    m.regA, m.regX, m.regL, m.regB, m.regS, m.regT = 0, 0, 0, 0, 0, 0
+    m.regF = 0.0
+    m.pc, m.sw = 0, 0
+
+    m.Memory.clear()
+
+    for i := 0; i < NUM_OF_DEVICES; i++ {
+        m.devices[i] = nil
+    }
+    m.devices[0] = &InputDevice{}
+    m.devices[1] = &OutputDevice{}
+    m.devices[2] = &ErrorDevice{}
+
+    m.halted = false
+    m.paused = true
+    m.undoStack = nil
 }
 
 func (m *Machine) fetch() byte {
@@ -169,6 +226,7 @@ func (m *Machine) execF1(opcode byte) bool {
 	}
 
 	if handler, ok := handlers[opcode]; ok {
+		m.saveStateToUndoStack(nil, nil, false) // No memory changes for F2
 		handler(op)
 		return true
 	}
@@ -228,6 +286,10 @@ func (m *Machine) execF1(opcode byte) bool {
 	operand, old := m.getFullOperandAndCheckIfOld(op, ni, ex, fetchByte)
 
 	if handler, ok := handlers[opcode]; ok {
+		if opcode != SSK && opcode != STA && opcode != STB && opcode != STCH && opcode != STF &&
+			opcode != STI && opcode != STL && opcode != STS && opcode != STSW && opcode != STT && opcode != STX {
+				m.saveStateToUndoStack(nil, nil, false) // Not stores instructions do not change memory
+		}
 		handler(operand, ex, old)
 		return true
 	}
@@ -328,4 +390,32 @@ func (m *Machine) GetSpeed() time.Duration {
 
 func (m *Machine) SetSpeed(speed time.Duration) {
 	m.speed = speed
+}
+
+/*
+ *	SAVE MACHINE STATE
+ */
+func (m *Machine) saveStateToUndoStack(address *int32, value *int32, wholeWord bool) {
+	// Save registers
+	log := changeLog{}
+	log.regA = m.GetA()
+	log.regX = m.GetX()
+	log.regL = m.GetL()
+	log.regB = m.GetB()
+	log.regS = m.GetT()
+	log.regF = m.GetF()
+	log.pc = m.GetPC()
+	log.sw = m.GetSW()
+
+	if address != nil && value != nil {
+		if !wholeWord {
+			log.changedMem = append(log.changedMem, memChange{address: *address, value: byte(*value)})
+		} else {
+			log.changedMem = append(log.changedMem, memChange{address: *address, value: byte(*value >> 16)})
+			log.changedMem = append(log.changedMem, memChange{address: *address+1, value: byte(*value >> 8)})
+			log.changedMem = append(log.changedMem, memChange{address: *address+2, value: byte(*value)})
+		}
+	}
+
+	m.undoStack = append(m.undoStack, log)
 }

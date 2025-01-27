@@ -1,17 +1,20 @@
 package main
 
 import (
-	"os"
-
-	"sicsim/pkg/loader"
+	"sicsim/cmd/simulator/gui"
 	"sicsim/pkg/machine"
 )
 
 func main() {
-	file := os.Args[1]
+
+	machine := machine.NewMachine()
+
+	gui.StartGUI(machine)
+
+	/*file := os.Args[1]
 	machine := machine.NewMachine()
 	loader.Load(file, machine)
-	machine.PrintMEM(100)
+	machine.PrintMEM(100)*/
 	/*machine := NewMachine()
 	loadMEM("0100171B20033F2FFD000017", machine)
 	go machine.Start()
