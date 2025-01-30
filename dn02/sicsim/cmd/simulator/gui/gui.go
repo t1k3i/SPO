@@ -61,13 +61,20 @@ func StartGUI(m *machine.Machine) {
 	objectFileLabel := widget.NewLabel(fmt.Sprintf("Object file: %s", objectFile))
 	objectFileLabel.Wrapping = fyne.TextWrapWord
 
-	resetButton := widget.NewButton("RESET", func() {
+	resetButton := widget.NewButton("RESET", nil)
+	resetButton.OnTapped = func() {
 		if objectFile != "None" {
 			m.Reset()
-			loader.Load(objectFile, m)
+			err := loader.Load(objectFile, m)
+			if err != nil {
+				objectFile = "None"
+				objectFileLabel.SetText(fmt.Sprintf("Object file: %s", objectFile))
+				resetButton.Disable()
+				return
+			}
 			fmt.Println("Machine reset and file reloaded:", objectFile)
 		}
-	})
+	}
 	resetButton.Disable()
 
 	actionResetGrid := container.NewGridWithColumns(3,
@@ -82,7 +89,13 @@ func StartGUI(m *machine.Machine) {
 				return
 			}
 			filePath := fileURI.URI().Path()
-			loader.Load(filePath, m)
+			loadErr := loader.Load(filePath, m)
+			if loadErr != nil {
+				objectFile = "None"
+				objectFileLabel.SetText(fmt.Sprintf("Object file: %s", objectFile))
+				resetButton.Disable()
+				return
+			}
 			objectFile = filePath
 			objectFileLabel.SetText(fmt.Sprintf("Object file: %s", objectFile))
 			resetButton.Enable()
