@@ -203,19 +203,31 @@ func (m *Machine) ssk(op int32, ex bool, oldSic bool) {
 
 func (m *Machine) sta(op int32, ex bool, oldSic bool) {
 	v := m.GetWord(op)
-	m.saveStateToUndoStack(&op, &v, true)
+	if ex {
+		m.saveStateToUndoStack(&op, &v, true, 4)
+	} else {
+		m.saveStateToUndoStack(&op, &v, true, 3)
+	}
 	m.SetWord(op, m.GetA())
 }
 
 func (m *Machine) stb(op int32, ex bool, oldSic bool) {
 	v := m.GetWord(op)
-	m.saveStateToUndoStack(&op, &v, true)
+	if ex {
+		m.saveStateToUndoStack(&op, &v, true, 4)
+	} else {
+		m.saveStateToUndoStack(&op, &v, true, 3)
+	}
 	m.SetWord(op, m.GetB())
 }
 
 func (m *Machine) stch(op int32, ex bool, oldSic bool) {
 	v := int32(m.GetByte(op))
-	m.saveStateToUndoStack(&op, &v, false)
+	if ex {
+		m.saveStateToUndoStack(&op, &v, false, 4)
+	} else {
+		m.saveStateToUndoStack(&op, &v, false, 3)
+	}
 	m.SetByte(op, byte(m.GetA() & 0xFF))
 }
 
@@ -229,31 +241,51 @@ func (m *Machine) sti(op int32, ex bool, oldSic bool) {
 
 func (m *Machine) stl(op int32, ex bool, oldSic bool) {
 	v := m.GetWord(op)
-	m.saveStateToUndoStack(&op, &v, true)
+	if ex {
+		m.saveStateToUndoStack(&op, &v, true, 4)
+	} else {
+		m.saveStateToUndoStack(&op, &v, true, 3)
+	}
 	m.SetWord(op, m.GetL())
 }
 
 func (m *Machine) sts(op int32, ex bool, oldSic bool) {
 	v := m.GetWord(op)
-	m.saveStateToUndoStack(&op, &v, true)
+	if ex {
+		m.saveStateToUndoStack(&op, &v, true, 4)
+	} else {
+		m.saveStateToUndoStack(&op, &v, true, 3)
+	}
 	m.SetWord(op, m.GetS())
 }
 
 func (m *Machine) stsw(op int32, ex bool, oldSic bool) {
 	v := m.GetWord(op)
-	m.saveStateToUndoStack(&op, &v, true)
+	if ex {
+		m.saveStateToUndoStack(&op, &v, true, 4)
+	} else {
+		m.saveStateToUndoStack(&op, &v, true, 3)
+	}
 	m.SetWord(op, m.GetSW())
 }
 
 func (m *Machine) stt(op int32, ex bool, oldSic bool) {
 	v := m.GetWord(op)
-	m.saveStateToUndoStack(&op, &v, true)
+	if ex {
+		m.saveStateToUndoStack(&op, &v, true, 4)
+	} else {
+		m.saveStateToUndoStack(&op, &v, true, 3)
+	}
 	m.SetWord(op, m.GetT())
 }
 
 func (m *Machine) stx(op int32, ex bool, oldSic bool) {
 	v := m.GetWord(op)
-	m.saveStateToUndoStack(&op, &v, true)
+	if ex {
+		m.saveStateToUndoStack(&op, &v, true, 4)
+	} else {
+		m.saveStateToUndoStack(&op, &v, true, 3)
+	}
 	m.SetWord(op, m.GetX())
 }
 

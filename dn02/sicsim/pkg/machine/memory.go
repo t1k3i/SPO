@@ -27,11 +27,11 @@ func (m *Memory) GetWord(addr int32) int32 {
 func (m *Memory) SetWord(addr int32, v int32) {
 	checkAddress(addr)
 	checkValue(v)
-	m.memory[addr+2] = byte(v & 0xFF)
+	m.memory[addr+2] = byte(v)
 	v >>= 8
-	m.memory[addr+2] = byte(v & 0xFF)
+	m.memory[addr+1] = byte(v)
 	v >>= 8
-	m.memory[addr+2] = byte(v & 0xFF)
+	m.memory[addr] = byte(v)
 }
 
 func (m *Memory) clear() {

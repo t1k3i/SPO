@@ -71,8 +71,12 @@ func (m *Machine) SetDevice(num int, device Device) {
 /*
  *	MAIN LOOP
  */
+func (m *Machine) SetPaused(paused bool) {
+	m.paused = paused
+}
+
 func (m *Machine) IsRunning() bool {
-	return !m.halted || !m.paused
+	return !m.halted && !m.paused
 }
 
 func (m *Machine) IsHalted() bool {
@@ -88,9 +92,6 @@ func (m *Machine) Start() {
 		m.PrintRegisters()
 		m.PrintMEM(20)
 		m.Step()
-	}
-	if m.halted {
-		m.SetPC(m.GetPC() - 3)
 	}
 }
 
@@ -109,6 +110,8 @@ func (m *Machine) Undo() {
 	if len(m.undoStack) == 0 {
 		return
 	}
+
+	m.halted = false
 
 	ix := len(m.undoStack)-1
 	lastLog := m.undoStack[ix]
@@ -177,6 +180,7 @@ func (m *Machine) execute() {
 		}
 	} else {
 		if (opcode == J && ni == 3 && op == 0x2FFD) {
+			m.SetPC(m.GetPC() - 3)
 			m.halted = true;
 			return;
 		}
@@ -226,7 +230,7 @@ func (m *Machine) execF1(opcode byte) bool {
 	}
 
 	if handler, ok := handlers[opcode]; ok {
-		m.saveStateToUndoStack(nil, nil, false) // No memory changes for F2
+		m.saveStateToUndoStack(nil, nil, false, 2) // No memory changes for F2
 		handler(op)
 		return true
 	}
@@ -288,7 +292,11 @@ func (m *Machine) execF1(opcode byte) bool {
 	if handler, ok := handlers[opcode]; ok {
 		if opcode != SSK && opcode != STA && opcode != STB && opcode != STCH && opcode != STF &&
 			opcode != STI && opcode != STL && opcode != STS && opcode != STSW && opcode != STT && opcode != STX {
-				m.saveStateToUndoStack(nil, nil, false) // Not stores instructions do not change memory
+				if ex {
+					m.saveStateToUndoStack(nil, nil, false, 4) // Not stores instructions do not change memory
+				} else {
+					m.saveStateToUndoStack(nil, nil, false, 3) // Not stores instructions do not change memory
+				}
 		}
 		handler(operand, ex, old)
 		return true
@@ -395,7 +403,7 @@ func (m *Machine) SetSpeed(speed time.Duration) {
 /*
  *	SAVE MACHINE STATE
  */
-func (m *Machine) saveStateToUndoStack(address *int32, value *int32, wholeWord bool) {
+func (m *Machine) saveStateToUndoStack(address *int32, value *int32, wholeWord bool, minus int32 /* minus PC */) {
 	// Save registers
 	log := changeLog{}
 	log.regA = m.GetA()
@@ -404,7 +412,7 @@ func (m *Machine) saveStateToUndoStack(address *int32, value *int32, wholeWord b
 	log.regB = m.GetB()
 	log.regS = m.GetT()
 	log.regF = m.GetF()
-	log.pc = m.GetPC()
+	log.pc = m.GetPC() - minus
 	log.sw = m.GetSW()
 
 	if address != nil && value != nil {
