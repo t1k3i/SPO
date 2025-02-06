@@ -2,7 +2,6 @@ package loader
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"strconv"
 
@@ -139,11 +138,10 @@ func Load(filePath string, m *machine.Machine) error {
 	}
 	defer file.Close()
 
-	loadAddress, codeLength, err := readHeader(file)
+	_, _, err = readHeader(file)
 	if err != nil {
 		return err
 	}
-	fmt.Println(loadAddress, "|", codeLength)
 
 	if _, err := readByte(file, 1); err != nil {
 		return err
@@ -166,16 +164,12 @@ func Load(filePath string, m *machine.Machine) error {
 			return err
 		}
 		loadInMemory(codeAddress, codeLen, code, m)
-
-		fmt.Print(codeAddress, " | ", codeLen, " | ")
-		fmt.Printf("%X\n", code)
 	}
 
 	pcStart, err := readEnd(file)
 	if err != nil {
 		return err
 	}
-	fmt.Println(pcStart)
 	m.SetPC(pcStart)
 
 	return nil

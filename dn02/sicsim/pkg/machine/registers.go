@@ -43,37 +43,37 @@ func (m *Machine) GetSW() int32 {
  *	SET REGISTER VALUES
  */
 func (m *Machine) SetA(v int32) {
-	checkValue(v)
+	v = v & 0xFFFFFF
 	m.regA = v
 }
 
 func (m *Machine) SetX(v int32) {
-	checkValue(v)
+	v = v & 0xFFFFFF
 	m.regX = v
 }
 
 func (m *Machine) SetL(v int32) {
-	checkValue(v)
+	v = v & 0xFFFFFF
 	m.regL = v
 }
 
 func (m *Machine) SetB(v int32) {
-	checkValue(v)
+	v = v & 0xFFFFFF
 	m.regB = v
 }
 
 func (m *Machine) SetS(v int32) {
-	checkValue(v)
+	v = v & 0xFFFFFF
 	m.regS = v
 }
 
 func (m *Machine) SetT(v int32) {
-	checkValue(v)
+	v = v & 0xFFFFFF
 	m.regT = v
 }
 
 func (m *Machine) SetF(v float64) {
-	m.regF = v
+	notImplementedFloat()
 }
 
 func (m *Machine) SetPC(v int32) {
@@ -87,7 +87,7 @@ func (m *Machine) IncPC() {
 }
 
 func (m *Machine) SetSW(v int32) {
-	checkValue(v)
+	v = v & 0xFFFFFF
 	m.sw = v
 }
 
@@ -125,7 +125,7 @@ func (m *Machine) GetReg(reg byte) int32 {
  *	SET REGISTER VALUES BY INDEX
  */
 func (m *Machine) SetReg(reg byte, v int32) {
-	checkValue(v)
+	v = v & 0xFFFFFF
 	switch reg {
 	case 0:
 		m.SetA(v)

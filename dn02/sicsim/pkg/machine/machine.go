@@ -287,7 +287,10 @@ func (m *Machine) execF1(opcode byte) bool {
 	}
 
 	fetchByte := opcode == LDCH || opcode == STCH || opcode == RD || opcode == WD || opcode == TD
-	operand, old := m.getFullOperandAndCheckIfOld(op, ni, ex, fetchByte)
+	isStore := opcode == STA || opcode == STB || opcode == STCH || opcode == STF ||
+		opcode == STI || opcode == STL || opcode == STS || opcode == STSW ||
+		opcode == STT || opcode == STX
+	operand, old := m.getFullOperandAndCheckIfOld(op, ni, ex, fetchByte, isStore)
 
 	if handler, ok := handlers[opcode]; ok {
 		if opcode != SSK && opcode != STA && opcode != STB && opcode != STCH && opcode != STF &&
@@ -304,7 +307,7 @@ func (m *Machine) execF1(opcode byte) bool {
 	return false
 }
 
-func (m *Machine) getFullOperandAndCheckIfOld(op int32, ni byte, ex bool, fetchByte bool) (int32, bool) {
+func (m *Machine) getFullOperandAndCheckIfOld(op int32, ni byte, ex bool, fetchByte bool, isStore bool) (int32, bool) {
 	if ni == 0 {
 		if !ex {
 			invalidAddressing()
@@ -316,7 +319,7 @@ func (m *Machine) getFullOperandAndCheckIfOld(op int32, ni byte, ex bool, fetchB
 	} else {
 		offset, xbpe := getOffsetAndXBPE(op, ex)
 		UN := m.getEffectiveAddress(xbpe, offset)
-		fullOperand := m.getFullOperand(UN, ni, fetchByte)
+		fullOperand := m.getFullOperand(UN, ni, fetchByte, isStore)
 		return fullOperand, false
 	}
 }
@@ -331,7 +334,7 @@ func getOffsetAndXBPE(op int32, ex bool) (int32, byte) {
 
 func (m *Machine) getEffectiveAddress(xbpe byte, offset int32) int32 {
 	var x int32 = 0
-	if (xbpe & 8) == 1 {
+	if (xbpe & 8) == 8 {
 		x = m.GetX()
 	}
 	if (((xbpe & 2) == 1) && ((xbpe & 4) == 1) ) {
@@ -346,7 +349,7 @@ func (m *Machine) getEffectiveAddress(xbpe byte, offset int32) int32 {
 	}
 }
 
-func (m *Machine) getFullOperand(UN int32, ni byte, fetchByte bool /* for commands like ldch */) int32 {
+func (m *Machine) getFullOperand(UN int32, ni byte, fetchByte bool /* for commands like ldch */, isStore bool) int32 {
 	if ni == 1 {
 		if fetchByte {
 			return UN & 0x0000FF
@@ -359,7 +362,13 @@ func (m *Machine) getFullOperand(UN int32, ni byte, fetchByte bool /* for comman
 		return m.GetWord(m.GetWord(UN))
 	} else {
 		if fetchByte {
+			if isStore {
+				return UN
+			}
 			return int32(m.GetByte(UN))
+		}
+		if isStore {
+			return UN
 		}
 		return m.GetWord(UN)
 	}

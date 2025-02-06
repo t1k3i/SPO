@@ -1,5 +1,10 @@
 package machine
 
+import (
+	"fmt"
+	"os"
+)
+
 /*
  *	F2 COMMANDS
  */
@@ -299,9 +304,30 @@ func (m *Machine) subf(op int32, ex bool, oldSic bool) {
 
 func (m *Machine) td(op int32, ex bool, oldSic bool) {
 	devNumber := byte(op)
+
+	if devNumber > 2 {
+		hexName := fmt.Sprintf("%02X.dev", devNumber)
+
+		if _, err := os.Stat(hexName); os.IsNotExist(err) {
+			m.SetSW((m.GetSW() & 0xFFFF3F) | EQ)
+			return
+		}
+
+		if m.devices[devNumber] == nil {
+			file, err := os.OpenFile(hexName, os.O_RDWR, 0666)
+			if err != nil {
+				fileDoesNotExist()
+			} else {
+				m.devices[devNumber] = &FileDevice{file: file}
+			}
+		}
+	}
+
 	if m.devices[devNumber].Test() {
 		m.SetSW((m.GetSW() & 0xFFFF3F) | LT)
+		return
 	}
+
 	m.SetSW((m.GetSW() & 0xFFFF3F) | EQ)
 }
 
@@ -319,6 +345,25 @@ func (m *Machine) tix(op int32, ex bool, oldSic bool) {
 
 func (m *Machine) wd(op int32, ex bool, oldSic bool) {
 	devNumber := byte(op)
-	byteToWrite := byte(m.GetA() & 0xFF)
-	m.devices[devNumber].Write(byteToWrite)
+
+	if devNumber > 2 {
+		hexName := fmt.Sprintf("%02X.dev", devNumber)
+		if _, err := os.Stat(hexName); os.IsNotExist(err) {
+			return
+		}
+
+		if m.devices[devNumber] == nil {
+			file, err := os.OpenFile(hexName, os.O_RDWR, 0666)
+			if err != nil {
+				fileDoesNotExist()
+			} else {
+				m.devices[devNumber] = &FileDevice{file: file}
+			}
+		}
+	}
+
+	if m.devices[devNumber] != nil {
+		byteToWrite := byte(m.GetA() & 0xFF)
+		m.devices[devNumber].Write(byteToWrite)
+	}
 }
